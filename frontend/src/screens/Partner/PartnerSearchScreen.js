@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, Button, Alert, FlatList, TouchableOpacity } from 'react-native';
-import { getSchedules, createRequest } from './api';
+import { getSchedules, createRequest } from '../../api';
 
 export default function PartnerScreen({ currentUser }) {
   const [day, setDay] = useState('');

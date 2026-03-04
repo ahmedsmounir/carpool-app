@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TextInput, Button, Alert, ScrollView, FlatList } from 'react-native';
-import { createSchedule, getRequestsForDriver, updateRequest } from './api';
+import { createSchedule, getRequestsForDriver, updateRequest } from '../../api';
 
 export default function DriverScreen({ currentUser }) {
   const [day, setDay] = useState('');
