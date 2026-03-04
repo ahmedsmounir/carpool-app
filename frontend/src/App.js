@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, Button, SafeAreaView, ActivityIndicator } from 'react-native';
-import DriverScreen from './src/DriverScreen';
-import PartnerScreen from './src/PartnerScreen';
-import { getUsers, createUser } from './src/api';
+import DriverScreen from './screens/Driver/DriverDashboardScreen';
+import PartnerScreen from './screens/Partner/PartnerSearchScreen';
+import { getUsers, createUser } from './api';
 
 export default function App() {
   const [role, setRole] = useState(null);
