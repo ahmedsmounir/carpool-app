@@ -5,16 +5,14 @@ export default function RegisterScreen({ navigation, route }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [role, setRole] = useState('partner'); // Default role
 
   // Similarly passing app-level function via navigation params
   const { onRegister } = route.params || {};
 
   const handleRegister = () => {
-    // Mock register logic
     if (onRegister) {
-      onRegister('driver');
-    } else {
-      navigation.navigate('DriverDashboard');
+      onRegister({ name, email, password, role });
     }
   };
 
@@ -64,6 +62,24 @@ export default function RegisterScreen({ navigation, route }) {
               onChangeText={setPassword}
               secureTextEntry
             />
+          </View>
+
+          <View style={styles.roleContainer}>
+            <Text style={styles.roleLabel}>I am a:</Text>
+            <View style={styles.roleButtons}>
+              <TouchableOpacity
+                style={[styles.roleButton, role === 'partner' && styles.roleButtonActive]}
+                onPress={() => setRole('partner')}
+              >
+                <Text style={[styles.roleButtonText, role === 'partner' && styles.roleButtonTextActive]}>Partner</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.roleButton, role === 'driver' && styles.roleButtonActive]}
+                onPress={() => setRole('driver')}
+              >
+                <Text style={[styles.roleButtonText, role === 'driver' && styles.roleButtonTextActive]}>Driver</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
           <TouchableOpacity style={styles.registerButton} onPress={handleRegister}>
@@ -152,5 +168,39 @@ const styles = StyleSheet.create({
     color: '#000000',
     fontSize: 15,
     fontWeight: '600',
+  },
+  roleContainer: {
+    marginBottom: 20,
+  },
+  roleLabel: {
+    fontSize: 16,
+    color: '#333333',
+    marginBottom: 10,
+    fontWeight: '500',
+  },
+  roleButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  roleButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: '#e0e0e0',
+    borderRadius: 8,
+    alignItems: 'center',
+    marginHorizontal: 5,
+  },
+  roleButtonActive: {
+    backgroundColor: '#000000',
+    borderColor: '#000000',
+  },
+  roleButtonText: {
+    color: '#666666',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  roleButtonTextActive: {
+    color: '#ffffff',
   },
 });

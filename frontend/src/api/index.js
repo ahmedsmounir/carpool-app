@@ -4,6 +4,34 @@ import { Platform } from 'react-native';
 // In Android emulator, localhost is 10.0.2.2.
 const API_URL = Platform.OS === 'android' ? 'http://10.0.2.2:3000/api' : 'http://localhost:3000/api';
 
+export const login = async (credentials) => {
+  const res = await fetch(`${API_URL}/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(credentials),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || 'Login failed');
+  }
+  return data;
+};
+
+export const register = async (userData) => {
+  const res = await fetch(`${API_URL}/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(userData),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || 'Registration failed');
+  }
+  return data;
+};
+
 export const getUsers = async () => {
   const res = await fetch(`${API_URL}/users`);
   return res.json();

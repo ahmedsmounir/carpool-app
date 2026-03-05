@@ -1,19 +1,55 @@
 const express = require('express');
 const cors = require('cors');
-const { connectDB } = require('./db');
-
-const User = require('./models/User');
-const Schedule = require('./models/Schedule');
-const Request = require('./models/Request');
+const { connectDB, getDB } = require('./db');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Auth
+app.post('/api/register', async (req, res) => {
+  try {
+    const db = getDB();
+    const { name, email, password, role } = req.body;
+
+    // Check if user already exists
+    const existingUser = await db.get('SELECT * FROM users WHERE email = ?', [email]);
+    if (existingUser) {
+      return res.status(400).json({ error: 'User with this email already exists' });
+    }
+
+    const result = await db.run(
+      'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
+      [name, email, password, role]
+    );
+    res.status(201).json({ _id: result.lastID, name, email, role });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.post('/api/login', async (req, res) => {
+  try {
+    const db = getDB();
+    const { email, password } = req.body;
+
+    const user = await db.get('SELECT id as _id, name, email, role FROM users WHERE email = ? AND password = ?', [email, password]);
+
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    res.json(user);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // Users
 app.get('/api/users', async (req, res) => {
   try {
-    const users = await User.find();
+    const db = getDB();
+    const users = await db.all('SELECT id as _id, name, email, role FROM users');
     res.json(users);
   } catch (err) {
     res.status(400).json({ error: err.message });
@@ -22,9 +58,13 @@ app.get('/api/users', async (req, res) => {
 
 app.post('/api/users', async (req, res) => {
   try {
-    const user = new User(req.body);
-    await user.save();
-    res.status(201).json(user);
+    const db = getDB();
+    const { name, email, password, role } = req.body;
+    const result = await db.run(
+      'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
+      [name, email, password, role]
+    );
+    res.status(201).json({ _id: result.lastID, name, email, role });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -33,9 +73,13 @@ app.post('/api/users', async (req, res) => {
 // Driver schedules
 app.post('/api/schedules', async (req, res) => {
   try {
-    const schedule = new Schedule(req.body);
-    await schedule.save();
-    res.status(201).json(schedule);
+    const db = getDB();
+    const { driverId, day, timeSlot, origin, availableSeats, gasCost } = req.body;
+    const result = await db.run(
+      'INSERT INTO schedules (driverId, day, timeSlot, origin, availableSeats, gasCost) VALUES (?, ?, ?, ?, ?, ?)',
+      [driverId, day, timeSlot, origin, availableSeats, gasCost]
+    );
+    res.status(201).json({ _id: result.lastID, driverId, day, timeSlot, origin, availableSeats, gasCost });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -44,16 +88,41 @@ app.post('/api/schedules', async (req, res) => {
 // Partner searches for schedules
 app.get('/api/schedules', async (req, res) => {
   try {
+    const db = getDB();
     const { day, timeSlot, origin } = req.query;
-    let query = {};
-    if (day) query.day = day;
-    if (timeSlot) query.timeSlot = timeSlot;
-    if (origin) query.origin = origin;
-    // ensure there are available seats
-    query.availableSeats = { $gt: 0 };
+    let query = 'SELECT schedules.id as _id, driverId, day, timeSlot, origin, availableSeats, gasCost, users.name as driverName FROM schedules JOIN users ON schedules.driverId = users.id WHERE availableSeats > 0';
+    const params = [];
+
+    if (day) {
+      query += ' AND day = ?';
+      params.push(day);
+    }
+    if (timeSlot) {
+      query += ' AND timeSlot = ?';
+      params.push(timeSlot);
+    }
+    if (origin) {
+      query += ' AND origin = ?';
+      params.push(origin);
+    }
+
+    const schedules = await db.all(query, params);
     
-    const schedules = await Schedule.find(query).populate('driverId', 'name');
-    res.json(schedules);
+    // Map output to match frontend expectations
+    const formattedSchedules = schedules.map(s => ({
+      _id: s._id,
+      driverId: {
+        _id: s.driverId,
+        name: s.driverName
+      },
+      day: s.day,
+      timeSlot: s.timeSlot,
+      origin: s.origin,
+      availableSeats: s.availableSeats,
+      gasCost: s.gasCost
+    }));
+
+    res.json(formattedSchedules);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -62,9 +131,13 @@ app.get('/api/schedules', async (req, res) => {
 // Partner requests a ride
 app.post('/api/requests', async (req, res) => {
   try {
-    const request = new Request({ ...req.body, status: 'pending' });
-    await request.save();
-    res.status(201).json(request);
+    const db = getDB();
+    const { scheduleId, partnerId } = req.body;
+    const result = await db.run(
+      'INSERT INTO requests (scheduleId, partnerId, status) VALUES (?, ?, ?)',
+      [scheduleId, partnerId, 'pending']
+    );
+    res.status(201).json({ _id: result.lastID, scheduleId, partnerId, status: 'pending' });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -73,12 +146,39 @@ app.post('/api/requests', async (req, res) => {
 // Get requests for a specific driver
 app.get('/api/requests/driver/:driverId', async (req, res) => {
   try {
-    const schedules = await Schedule.find({ driverId: req.params.driverId });
-    const scheduleIds = schedules.map(s => s._id);
-    const requests = await Request.find({ scheduleId: { $in: scheduleIds } })
-      .populate('partnerId', 'name')
-      .populate('scheduleId');
-    res.json(requests);
+    const db = getDB();
+    const { driverId } = req.params;
+
+    // Get schedules for this driver
+    const requests = await db.all(`
+      SELECT requests.id as _id, requests.scheduleId, requests.partnerId, requests.status, requests.splitAmount,
+             users.name as partnerName,
+             schedules.day, schedules.timeSlot, schedules.origin, schedules.availableSeats, schedules.gasCost
+      FROM requests
+      JOIN schedules ON requests.scheduleId = schedules.id
+      JOIN users ON requests.partnerId = users.id
+      WHERE schedules.driverId = ?
+    `, [driverId]);
+
+    const formattedRequests = requests.map(r => ({
+      _id: r._id,
+      scheduleId: {
+        _id: r.scheduleId,
+        day: r.day,
+        timeSlot: r.timeSlot,
+        origin: r.origin,
+        availableSeats: r.availableSeats,
+        gasCost: r.gasCost
+      },
+      partnerId: {
+        _id: r.partnerId,
+        name: r.partnerName
+      },
+      status: r.status,
+      splitAmount: r.splitAmount
+    }));
+
+    res.json(formattedRequests);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -87,48 +187,40 @@ app.get('/api/requests/driver/:driverId', async (req, res) => {
 // Driver accepts/rejects a ride request
 app.patch('/api/requests/:id', async (req, res) => {
   try {
+    const db = getDB();
     const { status } = req.body;
-    const request = await Request.findById(req.params.id).populate('scheduleId');
+    const { id } = req.params;
+
+    const request = await db.get('SELECT * FROM requests WHERE id = ?', [id]);
     
     if (!request) {
       return res.status(404).json({ error: 'Request not found' });
     }
 
     if (status === 'accepted') {
-      const schedule = await Schedule.findById(request.scheduleId._id);
+      const schedule = await db.get('SELECT * FROM schedules WHERE id = ?', [request.scheduleId]);
       
       if (schedule.availableSeats <= 0) {
         return res.status(400).json({ error: 'No available seats' });
       }
 
-      // Simple gas split calculation (divide gasCost equally among total passengers)
-      // total passengers = original seats - current available seats + 1 (the driver) + 1 (the new accepted partner)
-      // actually wait, this logic is up to interpretation, let's keep it simple: split amount = gasCost / (total people in car)
-      // For simplicity let's assume "total people in car" when this is accepted is 2 (driver + 1 partner).
-      // We'll update the logic slightly. Let's just say splitting the gas by all currently accepted requests + driver.
+      const allAcceptedReqs = await db.all('SELECT * FROM requests WHERE scheduleId = ? AND status = ?', [schedule.id, 'accepted']);
+      const allAcceptedReqsCount = allAcceptedReqs.length;
       
-      const allAcceptedReqsCount = await Request.countDocuments({ scheduleId: schedule._id, status: 'accepted' });
       const totalPeople = allAcceptedReqsCount + 1 + 1; // current accepted + driver + this new person
       const splitAmount = schedule.gasCost / totalPeople;
 
-      request.splitAmount = splitAmount;
-      request.status = 'accepted';
+      await db.run('UPDATE requests SET status = ?, splitAmount = ? WHERE id = ?', ['accepted', splitAmount, id]);
+      await db.run('UPDATE schedules SET availableSeats = availableSeats - 1 WHERE id = ?', [schedule.id]);
+      await db.run('UPDATE requests SET splitAmount = ? WHERE scheduleId = ? AND status = ?', [splitAmount, schedule.id, 'accepted']);
       
-      schedule.availableSeats -= 1;
-      await schedule.save();
-
-      // Recalculate split for all other accepted requests
-      await Request.updateMany(
-        { scheduleId: schedule._id, status: 'accepted' },
-        { splitAmount: splitAmount }
-      );
-
+      res.json({ _id: id, status: 'accepted', splitAmount });
     } else if (status === 'rejected') {
-      request.status = 'rejected';
+      await db.run('UPDATE requests SET status = ? WHERE id = ?', ['rejected', id]);
+      res.json({ _id: id, status: 'rejected' });
+    } else {
+      res.status(400).json({ error: 'Invalid status' });
     }
-
-    await request.save();
-    res.json(request);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
