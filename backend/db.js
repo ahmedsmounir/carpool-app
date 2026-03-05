@@ -25,6 +25,7 @@ const connectDB = async () => {
       day TEXT NOT NULL,
       timeSlot TEXT NOT NULL,
       origin TEXT NOT NULL,
+      destination TEXT NOT NULL,
       availableSeats INTEGER NOT NULL,
       gasCost REAL NOT NULL,
       FOREIGN KEY(driverId) REFERENCES users(id)

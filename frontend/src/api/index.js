@@ -51,6 +51,11 @@ export const getRequestsForDriver = async (driverId) => {
   return res.json();
 };
 
+export const getSchedulesForDriver = async (driverId) => {
+  const res = await fetch(`${API_URL}/schedules/driver/${driverId}`);
+  return res.json();
+};
+
 export const createSchedule = async (scheduleData) => {
   const res = await fetch(`${API_URL}/schedules`, {
     method: 'POST',
