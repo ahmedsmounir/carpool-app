@@ -9,12 +9,8 @@ export default function LoginScreen({ navigation, route }) {
   const { onLogin } = route.params || {};
 
   const handleLogin = () => {
-    // Mock login function that updates state/role to 'driver' and navigates
     if (onLogin) {
-      onLogin('driver');
-    } else {
-      // Direct navigation as requested
-      navigation.navigate('DriverDashboard');
+      onLogin({ email, password });
     }
   };
 

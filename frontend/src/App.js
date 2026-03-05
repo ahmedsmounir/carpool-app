@@ -7,7 +7,7 @@ import LoginScreen from './screens/Auth/LoginScreen';
 import RegisterScreen from './screens/Auth/RegisterScreen';
 import DriverScreen from './screens/Driver/DriverDashboardScreen';
 import PartnerScreen from './screens/Partner/PartnerSearchScreen';
-import { getUsers, createUser } from './api';
+import { login, register } from './api';
 
 const Stack = createNativeStackNavigator();
 
@@ -15,24 +15,27 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async (selectedRole) => {
+  const handleLogin = async (credentials) => {
     setLoading(true);
     try {
-      const users = await getUsers();
-      let user = users.find(u => u.role === selectedRole);
-      
-      if (!user) {
-        // Create a dummy user for this role if one doesn't exist in DB
-        const result = await createUser({
-          name: selectedRole === 'driver' ? 'Alice Driver' : 'Bob Partner',
-          role: selectedRole
-        });
-        user = result;
-      }
+      const user = await login(credentials);
       setCurrentUser(user);
     } catch (e) {
       console.error(e);
-      alert("Error connecting to backend: " + e.message);
+      alert("Error: " + e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRegister = async (userData) => {
+    setLoading(true);
+    try {
+      const user = await register(userData);
+      setCurrentUser(user);
+    } catch (e) {
+      console.error(e);
+      alert("Error: " + e.message);
     } finally {
       setLoading(false);
     }
@@ -76,7 +79,7 @@ export default function App() {
               name="Register"
               options={{ headerShown: false }}
             >
-              {props => <RegisterScreen {...props} route={{ params: { onRegister: handleLogin } }} />}
+              {props => <RegisterScreen {...props} route={{ params: { onRegister: handleRegister } }} />}
             </Stack.Screen>
           </>
         ) : (
