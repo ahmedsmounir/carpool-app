@@ -1,16 +1,21 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, Button, SafeAreaView, ActivityIndicator } from 'react-native';
+import React, { useState } from 'react';
+import { StyleSheet, ActivityIndicator, SafeAreaView, TouchableOpacity, Text, View } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+
+import LoginScreen from './screens/Auth/LoginScreen';
+import RegisterScreen from './screens/Auth/RegisterScreen';
 import DriverScreen from './screens/Driver/DriverDashboardScreen';
 import PartnerScreen from './screens/Partner/PartnerSearchScreen';
 import { getUsers, createUser } from './api';
 
+const Stack = createNativeStackNavigator();
+
 export default function App() {
-  const [role, setRole] = useState(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  // A very simple login simulation: create user if doesn't exist, else grab first matching role
-  const handleRoleSelection = async (selectedRole) => {
+  const handleLogin = async (selectedRole) => {
     setLoading(true);
     try {
       const users = await getUsers();
@@ -25,7 +30,6 @@ export default function App() {
         user = result;
       }
       setCurrentUser(user);
-      setRole(selectedRole);
     } catch (e) {
       console.error(e);
       alert("Error connecting to backend: " + e.message);
@@ -34,77 +38,99 @@ export default function App() {
     }
   };
 
+  const handleLogout = () => {
+    setCurrentUser(null);
+  };
+
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        <ActivityIndicator size="large" />
-      </SafeAreaView>
-    );
-  }
-
-  if (!role) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <Text style={styles.title}>College Carpool App</Text>
-        <Text style={styles.subtitle}>Select your role</Text>
-        <View style={styles.buttonContainer}>
-          <Button title="I am a Driver" onPress={() => handleRoleSelection('driver')} />
-        </View>
-        <View style={styles.buttonContainer}>
-          <Button title="I am a Partner (Passenger)" onPress={() => handleRoleSelection('partner')} />
-        </View>
+      <SafeAreaView style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#000000" />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Button title="Back" onPress={() => { setRole(null); setCurrentUser(null); }} />
-        <Text style={styles.headerTitle}>{role === 'driver' ? 'Driver Mode' : 'Partner Mode'}</Text>
-      </View>
-      {role === 'driver' ? (
-        <DriverScreen currentUser={currentUser} />
-      ) : (
-        <PartnerScreen currentUser={currentUser} />
-      )}
-    </SafeAreaView>
+    <NavigationContainer>
+      <Stack.Navigator
+        screenOptions={{
+          headerStyle: {
+            backgroundColor: '#ffffff',
+          },
+          headerTintColor: '#000000',
+          headerTitleStyle: {
+            fontWeight: 'bold',
+          },
+        }}
+      >
+        {!currentUser ? (
+          // Auth Stack
+          <>
+            <Stack.Screen
+              name="Login"
+              options={{ headerShown: false }}
+            >
+              {props => <LoginScreen {...props} route={{ params: { onLogin: handleLogin } }} />}
+            </Stack.Screen>
+            <Stack.Screen
+              name="Register"
+              options={{ headerShown: false }}
+            >
+              {props => <RegisterScreen {...props} route={{ params: { onRegister: handleLogin } }} />}
+            </Stack.Screen>
+          </>
+        ) : (
+          // App Stack
+          <>
+            {currentUser.role === 'driver' ? (
+              <Stack.Screen
+                name="DriverDashboard"
+                options={{
+                  title: 'Driver Dashboard',
+                  headerRight: () => (
+                    <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+                      <Text style={styles.logoutText}>Logout</Text>
+                    </TouchableOpacity>
+                  )
+                }}
+              >
+                {props => <DriverScreen {...props} currentUser={currentUser} />}
+              </Stack.Screen>
+            ) : (
+              <Stack.Screen
+                name="PartnerSearch"
+                options={{
+                  title: 'Partner Search',
+                  headerRight: () => (
+                    <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+                      <Text style={styles.logoutText}>Logout</Text>
+                    </TouchableOpacity>
+                  )
+                }}
+              >
+                {props => <PartnerScreen {...props} currentUser={currentUser} />}
+              </Stack.Screen>
+            )}
+          </>
+        )}
+      </Stack.Navigator>
+    </NavigationContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  loadingContainer: {
     flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
     justifyContent: 'center',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-  },
-  subtitle: {
-    fontSize: 18,
-    marginBottom: 40,
-  },
-  buttonContainer: {
-    marginVertical: 10,
-    width: '80%',
-  },
-  header: {
-    flexDirection: 'row',
     alignItems: 'center',
-    width: '100%',
-    padding: 10,
-    borderBottomWidth: 1,
-    borderColor: '#ccc',
-    position: 'absolute',
-    top: 50,
+    backgroundColor: '#ffffff',
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginLeft: 20,
+  logoutButton: {
+    marginRight: 15,
+  },
+  logoutText: {
+    color: '#000000',
+    fontSize: 16,
+    fontWeight: '600',
   }
 });
