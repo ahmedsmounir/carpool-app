@@ -74,12 +74,12 @@ app.post('/api/users', async (req, res) => {
 app.post('/api/schedules', async (req, res) => {
   try {
     const db = getDB();
-    const { driverId, day, timeSlot, origin, availableSeats, gasCost } = req.body;
+    const { driverId, day, timeSlot, origin, destination, availableSeats, gasCost } = req.body;
     const result = await db.run(
-      'INSERT INTO schedules (driverId, day, timeSlot, origin, availableSeats, gasCost) VALUES (?, ?, ?, ?, ?, ?)',
-      [driverId, day, timeSlot, origin, availableSeats, gasCost]
+      'INSERT INTO schedules (driverId, day, timeSlot, origin, destination, availableSeats, gasCost) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [driverId, day, timeSlot, origin, destination, availableSeats, gasCost]
     );
-    res.status(201).json({ _id: result.lastID, driverId, day, timeSlot, origin, availableSeats, gasCost });
+    res.status(201).json({ _id: result.lastID, driverId, day, timeSlot, origin, destination, availableSeats, gasCost });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -89,8 +89,8 @@ app.post('/api/schedules', async (req, res) => {
 app.get('/api/schedules', async (req, res) => {
   try {
     const db = getDB();
-    const { day, timeSlot, origin } = req.query;
-    let query = 'SELECT schedules.id as _id, driverId, day, timeSlot, origin, availableSeats, gasCost, users.name as driverName FROM schedules JOIN users ON schedules.driverId = users.id WHERE availableSeats > 0';
+    const { day, timeSlot, origin, destination } = req.query;
+    let query = 'SELECT schedules.id as _id, driverId, day, timeSlot, origin, destination, availableSeats, gasCost, users.name as driverName FROM schedules JOIN users ON schedules.driverId = users.id WHERE availableSeats > 0';
     const params = [];
 
     if (day) {
@@ -105,6 +105,10 @@ app.get('/api/schedules', async (req, res) => {
       query += ' AND origin = ?';
       params.push(origin);
     }
+    if (destination) {
+      query += ' AND destination = ?';
+      params.push(destination);
+    }
 
     const schedules = await db.all(query, params);
     
@@ -118,11 +122,24 @@ app.get('/api/schedules', async (req, res) => {
       day: s.day,
       timeSlot: s.timeSlot,
       origin: s.origin,
+      destination: s.destination,
       availableSeats: s.availableSeats,
       gasCost: s.gasCost
     }));
 
     res.json(formattedSchedules);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Get schedules for a specific driver
+app.get('/api/schedules/driver/:driverId', async (req, res) => {
+  try {
+    const db = getDB();
+    const { driverId } = req.params;
+    const schedules = await db.all('SELECT id as _id, driverId, day, timeSlot, origin, destination, availableSeats, gasCost FROM schedules WHERE driverId = ?', [driverId]);
+    res.json(schedules);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -153,7 +170,7 @@ app.get('/api/requests/driver/:driverId', async (req, res) => {
     const requests = await db.all(`
       SELECT requests.id as _id, requests.scheduleId, requests.partnerId, requests.status, requests.splitAmount,
              users.name as partnerName,
-             schedules.day, schedules.timeSlot, schedules.origin, schedules.availableSeats, schedules.gasCost
+             schedules.day, schedules.timeSlot, schedules.origin, schedules.destination, schedules.availableSeats, schedules.gasCost
       FROM requests
       JOIN schedules ON requests.scheduleId = schedules.id
       JOIN users ON requests.partnerId = users.id
@@ -167,6 +184,7 @@ app.get('/api/requests/driver/:driverId', async (req, res) => {
         day: r.day,
         timeSlot: r.timeSlot,
         origin: r.origin,
+        destination: r.destination,
         availableSeats: r.availableSeats,
         gasCost: r.gasCost
       },
