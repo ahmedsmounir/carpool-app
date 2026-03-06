@@ -2,12 +2,11 @@ Starting project at /app/frontend
 Starting Metro Bundler
 Waiting on http://localhost:8081
 Logs for your project will appear below.
-Web Bundled 7913ms index.js (394 modules)
-Web Bundled 26ms index.js (1 module)
+Web Bundled 9535ms index.js (400 modules)
+Web Bundled 27ms index.js (1 module)
 Web Bundled 25ms index.js (1 module)
-Web Bundled 24ms index.js (1 module)
+Web Bundled 30ms index.js (1 module)
 Web Bundled 23ms index.js (1 module)
-Web Bundled 24ms index.js (1 module)
+Web Bundled 73ms index.js (1 module)
 Web Bundled 23ms index.js (1 module)
-Web Bundled 41ms index.js (1 module)
-Web Bundled 25ms index.js (1 module)
+Web Bundled 33ms index.js (1 module)
