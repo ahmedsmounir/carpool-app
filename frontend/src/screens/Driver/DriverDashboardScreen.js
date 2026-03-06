@@ -53,6 +53,9 @@ export default function DriverScreen({ currentUser }) {
   };
 
   const handleSubmit = async () => {
+    const day = selectedDay;
+    const timeSlot = selectedPeriod;
+
     if (!day || !timeSlot || !origin || !destination || !availableSeats || !gasCost) {
       Alert.alert("Error", "Please fill out all fields.");
       return;
@@ -61,8 +64,8 @@ export default function DriverScreen({ currentUser }) {
     try {
       const scheduleData = {
         driverId: currentUser._id,
-        day: selectedDay,
-        timeSlot: selectedPeriod,
+        day,
+        timeSlot,
         origin,
         destination,
         availableSeats: parseInt(availableSeats),
