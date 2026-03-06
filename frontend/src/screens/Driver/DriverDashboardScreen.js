@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, TextInput, Alert, ScrollView, TouchableOpacity } from 'react-native';
+import { StyleSheet, Text, View, TextInput, Alert, ScrollView, TouchableOpacity, Modal } from 'react-native';
 import { createSchedule, getRequestsForDriver, updateRequest, getSchedulesForDriver } from '../../api';
+import { useTheme } from '../../ThemeContext';
+
+const DAYS = ['Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'];
+const PERIODS = ['Period 1', 'Period 2', 'Period 3', 'Period 4', 'Period 5'];
 
 export default function DriverScreen({ currentUser }) {
-  const [day, setDay] = useState('');
-  const [timeSlot, setTimeSlot] = useState('');
+  const { colors, isDarkMode } = useTheme();
+
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
   const [availableSeats, setAvailableSeats] = useState('');
@@ -12,6 +16,10 @@ export default function DriverScreen({ currentUser }) {
 
   const [requests, setRequests] = useState([]);
   const [schedules, setSchedules] = useState([]);
+
+  const [modalVisible, setModalVisible] = useState(false);
+  const [selectedDay, setSelectedDay] = useState('');
+  const [selectedPeriod, setSelectedPeriod] = useState('');
 
   useEffect(() => {
     if (currentUser && currentUser._id) {
@@ -53,8 +61,8 @@ export default function DriverScreen({ currentUser }) {
     try {
       const scheduleData = {
         driverId: currentUser._id,
-        day,
-        timeSlot,
+        day: selectedDay,
+        timeSlot: selectedPeriod,
         origin,
         destination,
         availableSeats: parseInt(availableSeats),
@@ -63,69 +71,131 @@ export default function DriverScreen({ currentUser }) {
       const result = await createSchedule(scheduleData);
       if (result.error) throw new Error(result.error);
       Alert.alert("Success", "Schedule created!");
-      // Reset form
-      setDay(''); setTimeSlot(''); setOrigin(''); setDestination(''); setAvailableSeats(''); setGasCost('');
+
+      setModalVisible(false);
+      setOrigin(''); setDestination(''); setAvailableSeats(''); setGasCost('');
       fetchData();
     } catch (e) {
       Alert.alert("Error", e.message);
     }
   };
 
-  return (
-    <ScrollView style={styles.container}>
-      <Text style={styles.header}>Post a New Ride</Text>
-      
-      <View style={styles.card}>
-        <Text style={styles.label}>Day</Text>
-        <TextInput style={styles.input} placeholder="e.g. Monday" placeholderTextColor="#aaa" value={day} onChangeText={setDay} />
+  const handleCellClick = (day, period) => {
+    const ride = schedules.find(s => s.day === day && s.timeSlot === period);
+    if (ride) {
+      Alert.alert("Ride Scheduled", `${ride.origin} to ${ride.destination}\nSeats: ${ride.availableSeats}\nGas: $${ride.gasCost}`);
+      return;
+    }
 
-        <Text style={styles.label}>Departure Time</Text>
-        <TextInput style={styles.input} placeholder="e.g. 8:00 AM" placeholderTextColor="#aaa" value={timeSlot} onChangeText={setTimeSlot} />
+    setSelectedDay(day);
+    setSelectedPeriod(period);
+    setModalVisible(true);
+  };
 
-        <Text style={styles.label}>Origin</Text>
-        <TextInput style={styles.input} placeholder="Enter starting location" placeholderTextColor="#aaa" value={origin} onChangeText={setOrigin} />
-
-        <Text style={styles.label}>Destination</Text>
-        <TextInput style={styles.input} placeholder="Enter destination" placeholderTextColor="#aaa" value={destination} onChangeText={setDestination} />
-
-        <View style={styles.row}>
-          <View style={styles.halfWidth}>
-            <Text style={styles.label}>Available Seats</Text>
-            <TextInput style={styles.input} placeholder="e.g. 3" placeholderTextColor="#aaa" value={availableSeats} onChangeText={setAvailableSeats} keyboardType="numeric" />
-          </View>
-          <View style={styles.halfWidth}>
-            <Text style={styles.label}>Total Gas Cost ($)</Text>
-            <TextInput style={styles.input} placeholder="e.g. 15.00" placeholderTextColor="#aaa" value={gasCost} onChangeText={setGasCost} keyboardType="numeric" />
-          </View>
+  const getCellContent = (day, period) => {
+    const ride = schedules.find(s => s.day === day && s.timeSlot === period);
+    if (ride) {
+      return (
+        <View style={[styles.scheduledCell, { backgroundColor: colors.primary }]}>
+          <Text style={[styles.cellText, { color: colors.primaryText }]} numberOfLines={1}>{ride.destination}</Text>
         </View>
-
-        <TouchableOpacity style={styles.primaryButton} onPress={handleSubmit}>
-          <Text style={styles.primaryButtonText}>Post Ride</Text>
-        </TouchableOpacity>
+      );
+    }
+    return (
+      <View style={[styles.emptyCell, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <Text style={[styles.cellText, { color: colors.textMuted }]}>+</Text>
       </View>
+    );
+  };
+
+  return (
+    <ScrollView style={[styles.container, { backgroundColor: colors.background }]}>
+      <Text style={[styles.header, { color: colors.text }]}>Weekly Schedule</Text>
       
-      <Text style={[styles.header, {marginTop: 30}]}>Your Posted Rides</Text>
-      {schedules.length === 0 ? <Text style={styles.emptyText}>You haven't posted any rides yet.</Text> : null}
+      <ScrollView horizontal={true} showsHorizontalScrollIndicator={false}>
+        <View>
+          {/* Header Row */}
+          <View style={styles.gridRow}>
+            <View style={[styles.gridHeaderCell, { backgroundColor: colors.surface }]} />
+            {PERIODS.map(period => (
+              <View key={period} style={[styles.gridHeaderCell, { backgroundColor: colors.surface }]}>
+                <Text style={[styles.gridHeaderText, { color: colors.text }]}>{period}</Text>
+              </View>
+            ))}
+          </View>
 
-      {schedules.map((item) => (
-        <View key={`sched-${item._id}`} style={styles.listCard}>
-          <Text style={styles.listCardTitle}>{item.origin} to {item.destination}</Text>
-          <Text style={styles.listCardText}>Date/Time: {item.day}, {item.timeSlot}</Text>
-          <Text style={styles.listCardText}>Seats: {item.availableSeats} | Gas: ${item.gasCost}</Text>
+          {/* Grid Rows */}
+          {DAYS.map(day => (
+            <View key={day} style={styles.gridRow}>
+              <View style={[styles.gridHeaderCell, { backgroundColor: colors.surface }]}>
+                <Text style={[styles.gridHeaderText, { color: colors.text }]}>{day.substring(0, 3)}</Text>
+              </View>
+              {PERIODS.map(period => (
+                <TouchableOpacity
+                  key={`${day}-${period}`}
+                  style={styles.gridCell}
+                  onPress={() => handleCellClick(day, period)}
+                  activeOpacity={0.7}
+                >
+                  {getCellContent(day, period)}
+                </TouchableOpacity>
+              ))}
+            </View>
+          ))}
         </View>
-      ))}
+      </ScrollView>
 
-      <Text style={[styles.header, {marginTop: 30}]}>Requests for your rides</Text>
-      {requests.length === 0 ? <Text style={styles.emptyText}>No requests found.</Text> : null}
+      {/* Modal for adding a ride */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Add Ride for {selectedDay}, {selectedPeriod}</Text>
+
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Origin</Text>
+            <TextInput style={[styles.input, { backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border }]} placeholder="Enter starting location" placeholderTextColor={colors.textMuted} value={origin} onChangeText={setOrigin} />
+
+            <Text style={[styles.label, { color: colors.textSecondary }]}>Destination</Text>
+            <TextInput style={[styles.input, { backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border }]} placeholder="Enter destination" placeholderTextColor={colors.textMuted} value={destination} onChangeText={setDestination} />
+
+            <View style={styles.row}>
+              <View style={styles.halfWidth}>
+                <Text style={[styles.label, { color: colors.textSecondary }]}>Seats</Text>
+                <TextInput style={[styles.input, { backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border }]} placeholder="e.g. 3" placeholderTextColor={colors.textMuted} value={availableSeats} onChangeText={setAvailableSeats} keyboardType="numeric" />
+              </View>
+              <View style={styles.halfWidth}>
+                <Text style={[styles.label, { color: colors.textSecondary }]}>Gas Cost ($)</Text>
+                <TextInput style={[styles.input, { backgroundColor: colors.inputBackground, color: colors.text, borderColor: colors.border }]} placeholder="e.g. 15.00" placeholderTextColor={colors.textMuted} value={gasCost} onChangeText={setGasCost} keyboardType="numeric" />
+              </View>
+            </View>
+
+            <View style={styles.btnRow}>
+              <TouchableOpacity style={[styles.actionButton, { backgroundColor: colors.border }]} onPress={() => setModalVisible(false)}>
+                <Text style={[styles.actionButtonText, { color: colors.text }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.actionButton, { backgroundColor: colors.primary }]} onPress={handleSubmit}>
+                <Text style={[styles.actionButtonText, { color: colors.primaryText }]}>Post Ride</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Text style={[styles.header, {marginTop: 30, color: colors.text }]}>Requests for your rides</Text>
+      {requests.length === 0 ? <Text style={[styles.emptyText, { color: colors.textMuted }]}>No requests found.</Text> : null}
       
       {requests.map((item) => (
-        <View key={`req-${item._id}`} style={styles.listCard}>
-          <Text style={styles.listCardTitle}>{item.scheduleId?.origin} to {item.scheduleId?.destination}</Text>
-          <Text style={styles.listCardText}>Date/Time: {item.scheduleId?.day}, {item.scheduleId?.timeSlot}</Text>
-          <Text style={styles.listCardText}>Partner: {item.partnerId?.name}</Text>
-          <Text style={styles.listCardText}>Status: <Text style={styles.statusText(item.status)}>{item.status.toUpperCase()}</Text></Text>
+        <View key={`req-${item._id}`} style={[styles.listCard, { backgroundColor: colors.surface, borderLeftColor: colors.primary }]}>
+          <Text style={[styles.listCardTitle, { color: colors.text }]}>{item.scheduleId?.origin} to {item.scheduleId?.destination}</Text>
+          <Text style={[styles.listCardText, { color: colors.textSecondary }]}>Date/Time: {item.scheduleId?.day}, {item.scheduleId?.timeSlot}</Text>
+          <Text style={[styles.listCardText, { color: colors.textSecondary }]}>Partner: {item.partnerId?.name}</Text>
+          <Text style={[styles.listCardText, { color: colors.textSecondary }]}>Status: <Text style={styles.statusText(item.status)}>{item.status.toUpperCase()}</Text></Text>
           {item.status === 'accepted' && (
-            <Text style={styles.boldText}>Current Gas Split: ${item.splitAmount?.toFixed(2)}</Text>
+            <Text style={[styles.boldText, { color: colors.text }]}>Current Gas Split: ${item.splitAmount?.toFixed(2)}</Text>
           )}
 
           {item.status === 'pending' && (
@@ -152,40 +222,84 @@ const styles = StyleSheet.create({
     flex: 1,
     width: '100%',
     padding: 20,
-    marginTop: 60,
-    backgroundColor: '#F5F5F5', // Light gray background
   },
   header: {
     fontSize: 24,
     fontWeight: '800',
     marginBottom: 20,
-    color: '#333',
   },
-  card: {
+  gridRow: {
+    flexDirection: 'row',
+  },
+  gridHeaderCell: {
+    width: 80,
+    height: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    margin: 2,
+    borderRadius: 8,
+  },
+  gridHeaderText: {
+    fontWeight: '600',
+    fontSize: 12,
+  },
+  gridCell: {
+    width: 80,
+    height: 60,
+    margin: 2,
+  },
+  emptyCell: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderRadius: 8,
+  },
+  scheduledCell: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 8,
+    padding: 4,
+  },
+  cellText: {
+    fontSize: 12,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalContent: {
+    width: '90%',
     padding: 20,
-    backgroundColor: '#FFF',
-    borderRadius: 12,
+    borderRadius: 16,
     shadowColor: '#000',
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.1,
     shadowRadius: 10,
-    elevation: 3,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 20,
   },
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#555',
     marginBottom: 8,
     marginTop: 10,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    backgroundColor: '#FAFAFA',
     paddingVertical: 12,
     paddingHorizontal: 15,
     borderRadius: 8,
     fontSize: 16,
-    color: '#333',
   },
   row: {
     flexDirection: 'row',
@@ -195,26 +309,12 @@ const styles = StyleSheet.create({
   halfWidth: {
     width: '48%',
   },
-  primaryButton: {
-    backgroundColor: '#000',
-    paddingVertical: 15,
-    borderRadius: 8,
-    marginTop: 25,
-    alignItems: 'center',
-  },
-  primaryButtonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '700',
-  },
   emptyText: {
     fontSize: 15,
-    color: '#777',
     fontStyle: 'italic',
   },
   listCard: {
     padding: 18,
-    backgroundColor: '#FFF',
     borderRadius: 12,
     marginBottom: 15,
     shadowColor: '#000',
@@ -222,23 +322,19 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
     borderLeftWidth: 4,
-    borderLeftColor: '#000', // Modern accent color
   },
   listCardTitle: {
     fontWeight: 'bold',
     fontSize: 18,
-    color: '#222',
     marginBottom: 6,
   },
   listCardText: {
     fontSize: 15,
-    color: '#555',
     marginBottom: 4,
   },
   boldText: {
     fontWeight: 'bold',
     fontSize: 15,
-    color: '#222',
     marginTop: 4,
   },
   statusText: (status) => ({

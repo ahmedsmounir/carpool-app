@@ -8,12 +8,14 @@ import RegisterScreen from './screens/Auth/RegisterScreen';
 import DriverScreen from './screens/Driver/DriverDashboardScreen';
 import PartnerScreen from './screens/Partner/PartnerSearchScreen';
 import { login, register } from './api';
+import { ThemeProvider, useTheme } from './ThemeContext';
 
 const Stack = createNativeStackNavigator();
 
-export default function App() {
+function AppNavigation() {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(false);
+  const { colors, toggleTheme, isDarkMode } = useTheme();
 
   const handleLogin = async (credentials) => {
     setLoading(true);
@@ -47,20 +49,31 @@ export default function App() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#000000" />
+      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </SafeAreaView>
     );
   }
+
+  const headerRightComponent = () => (
+    <View style={styles.headerRightContainer}>
+      <TouchableOpacity onPress={toggleTheme} style={styles.themeButton}>
+        <Text style={[styles.themeText, { color: colors.text }]}>{isDarkMode ? '☀️' : '🌙'}</Text>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+        <Text style={[styles.logoutText, { color: colors.text }]}>Logout</Text>
+      </TouchableOpacity>
+    </View>
+  );
 
   return (
     <NavigationContainer>
       <Stack.Navigator
         screenOptions={{
           headerStyle: {
-            backgroundColor: '#ffffff',
+            backgroundColor: colors.surface,
           },
-          headerTintColor: '#000000',
+          headerTintColor: colors.text,
           headerTitleStyle: {
             fontWeight: 'bold',
           },
@@ -90,11 +103,7 @@ export default function App() {
                 name="DriverDashboard"
                 options={{
                   title: 'Driver Dashboard',
-                  headerRight: () => (
-                    <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-                      <Text style={styles.logoutText}>Logout</Text>
-                    </TouchableOpacity>
-                  )
+                  headerRight: headerRightComponent
                 }}
               >
                 {props => <DriverScreen {...props} currentUser={currentUser} />}
@@ -104,11 +113,7 @@ export default function App() {
                 name="PartnerSearch"
                 options={{
                   title: 'Partner Search',
-                  headerRight: () => (
-                    <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-                      <Text style={styles.logoutText}>Logout</Text>
-                    </TouchableOpacity>
-                  )
+                  headerRight: headerRightComponent
                 }}
               >
                 {props => <PartnerScreen {...props} currentUser={currentUser} />}
@@ -121,7 +126,25 @@ export default function App() {
   );
 }
 
+export default function App() {
+  return (
+    <ThemeProvider>
+      <AppNavigation />
+    </ThemeProvider>
+  );
+}
+
 const styles = StyleSheet.create({
+  headerRightContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  themeButton: {
+    marginRight: 15,
+  },
+  themeText: {
+    fontSize: 20,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
