@@ -36,9 +36,9 @@ export default function PartnerScreen({ currentUser }) {
     fetchRides(query);
   };
 
-  const handleRequestRide = async (scheduleId) => {
+  const handleRequestRide = async (ride_id) => {
     try {
-      const result = await createRequest({ partnerId: currentUser._id, scheduleId });
+      const result = await createRequest({ passenger_id: currentUser._id, ride_id });
       if (result.error) throw new Error(result.error);
       Alert.alert("Success", "Ride requested!");
     } catch (e) {

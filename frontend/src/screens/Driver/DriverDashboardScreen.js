@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import { StyleSheet, Text, View, TextInput, Alert, ScrollView, TouchableOpacity, Modal } from 'react-native';
 import { createSchedule, getRequestsForDriver, updateRequest, getSchedulesForDriver } from '../../api';
 import { useTheme } from '../../ThemeContext';
@@ -6,26 +7,26 @@ import { useTheme } from '../../ThemeContext';
 const DAYS = ['Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'];
 const PERIODS = ['Period 1', 'Period 2', 'Period 3', 'Period 4', 'Period 5'];
 
-export default function DriverScreen({ currentUser }) {
-  const { colors, isDarkMode } = useTheme();
-
+export default function DriverDashboardScreen({ currentUser, navigation }) {
+  const { colors } = useTheme();
+  const [schedules, setSchedules] = useState([]);
+  const [requests, setRequests] = useState([]);
+  const [modalVisible, setModalVisible] = useState(false);
   const [origin, setOrigin] = useState('');
   const [destination, setDestination] = useState('');
   const [availableSeats, setAvailableSeats] = useState('');
   const [gasCost, setGasCost] = useState('');
 
-  const [requests, setRequests] = useState([]);
-  const [schedules, setSchedules] = useState([]);
-
-  const [modalVisible, setModalVisible] = useState(false);
   const [selectedDay, setSelectedDay] = useState('');
   const [selectedPeriod, setSelectedPeriod] = useState('');
 
-  useEffect(() => {
-    if (currentUser && currentUser._id) {
-      fetchData();
-    }
-  }, [currentUser]);
+  useFocusEffect(
+    useCallback(() => {
+      if (currentUser && currentUser._id) {
+        fetchData();
+      }
+    }, [currentUser])
+  );
 
   const fetchData = async () => {
     try {
@@ -53,25 +54,22 @@ export default function DriverScreen({ currentUser }) {
   };
 
   const handleSubmit = async () => {
-    const day = selectedDay;
-    const timeSlot = selectedPeriod;
-
-    if (!day || !timeSlot || !origin || !destination || !availableSeats || !gasCost) {
-      Alert.alert("Error", "Please fill out all fields.");
+    if (!origin || !destination || !availableSeats || !gasCost) {
+      Alert.alert("Error", "Please fill all fields");
       return;
     }
 
     try {
-      const scheduleData = {
+      const result = await createSchedule({
         driverId: currentUser._id,
-        day,
-        timeSlot,
+        day: selectedDay,
+        timeSlot: selectedPeriod,
         origin,
         destination,
         availableSeats: parseInt(availableSeats),
-        gasCost: parseFloat(gasCost)
-      };
-      const result = await createSchedule(scheduleData);
+        gasCost: parseFloat(gasCost),
+      });
+
       if (result.error) throw new Error(result.error);
       Alert.alert("Success", "Schedule created!");
 
@@ -193,9 +191,9 @@ export default function DriverScreen({ currentUser }) {
       
       {requests.map((item) => (
         <View key={`req-${item._id}`} style={[styles.listCard, { backgroundColor: colors.surface, borderLeftColor: colors.primary }]}>
-          <Text style={[styles.listCardTitle, { color: colors.text }]}>{item.scheduleId?.origin} to {item.scheduleId?.destination}</Text>
-          <Text style={[styles.listCardText, { color: colors.textSecondary }]}>Date/Time: {item.scheduleId?.day}, {item.scheduleId?.timeSlot}</Text>
-          <Text style={[styles.listCardText, { color: colors.textSecondary }]}>Partner: {item.partnerId?.name}</Text>
+          <Text style={[styles.listCardTitle, { color: colors.text }]}>{item.ride_id?.origin} to {item.ride_id?.destination}</Text>
+          <Text style={[styles.listCardText, { color: colors.textSecondary }]}>Date/Time: {item.ride_id?.day}, {item.ride_id?.timeSlot}</Text>
+          <Text style={[styles.listCardText, { color: colors.textSecondary }]}>Passenger: {item.passenger_id?.name}</Text>
           <Text style={[styles.listCardText, { color: colors.textSecondary }]}>Status: <Text style={styles.statusText(item.status)}>{item.status.toUpperCase()}</Text></Text>
           {item.status === 'accepted' && (
             <Text style={[styles.boldText, { color: colors.text }]}>Current Gas Split: ${item.splitAmount?.toFixed(2)}</Text>
@@ -206,8 +204,8 @@ export default function DriverScreen({ currentUser }) {
               <TouchableOpacity style={[styles.actionButton, styles.acceptButton]} onPress={() => handleStatusUpdate(item._id, 'accepted')}>
                 <Text style={styles.actionButtonText}>Accept</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.actionButton, styles.rejectButton]} onPress={() => handleStatusUpdate(item._id, 'rejected')}>
-                <Text style={styles.actionButtonText}>Reject</Text>
+              <TouchableOpacity style={[styles.actionButton, styles.rejectButton]} onPress={() => handleStatusUpdate(item._id, 'declined')}>
+                <Text style={styles.actionButtonText}>Decline</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -342,7 +340,7 @@ const styles = StyleSheet.create({
   },
   statusText: (status) => ({
     fontWeight: '700',
-    color: status === 'accepted' ? '#28a745' : status === 'rejected' ? '#dc3545' : '#f0ad4e',
+    color: status === 'accepted' ? '#28a745' : status === 'declined' ? '#dc3545' : '#f0ad4e',
   }),
   btnRow: {
     flexDirection: 'row',
