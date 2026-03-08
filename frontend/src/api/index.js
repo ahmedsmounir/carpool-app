@@ -2,7 +2,7 @@ import { Platform } from 'react-native';
 
 // Use your local network IP if testing on physical device, or localhost for simulator
 // In Android emulator, localhost is 10.0.2.2.
-const API_URL = 'http://localhost:3000/api';
+const API_URL = Platform.OS === 'android' ? 'http://10.0.2.2:3000/api' : 'http://localhost:3000/api';
 
 export const login = async (credentials) => {
   const res = await fetch(`${API_URL}/login`, {
@@ -82,7 +82,7 @@ export const createRequest = async (requestData) => {
 
 export const updateRequest = async (id, statusData) => {
   const res = await fetch(`${API_URL}/requests/${id}`, {
-    method: 'PATCH',
+    method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(statusData),
   });

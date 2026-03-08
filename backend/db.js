@@ -33,12 +33,12 @@ const connectDB = async () => {
 
     CREATE TABLE IF NOT EXISTS requests (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      scheduleId INTEGER NOT NULL,
-      partnerId INTEGER NOT NULL,
+      ride_id INTEGER NOT NULL,
+      passenger_id INTEGER NOT NULL,
       status TEXT NOT NULL DEFAULT 'pending',
       splitAmount REAL,
-      FOREIGN KEY(scheduleId) REFERENCES schedules(id),
-      FOREIGN KEY(partnerId) REFERENCES users(id)
+      FOREIGN KEY(ride_id) REFERENCES schedules(id),
+      FOREIGN KEY(passenger_id) REFERENCES users(id)
     );
   `);
 

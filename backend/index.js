@@ -149,12 +149,12 @@ app.get('/api/schedules/driver/:driverId', async (req, res) => {
 app.post('/api/requests', async (req, res) => {
   try {
     const db = getDB();
-    const { scheduleId, partnerId } = req.body;
+    const { ride_id, passenger_id } = req.body;
     const result = await db.run(
-      'INSERT INTO requests (scheduleId, partnerId, status) VALUES (?, ?, ?)',
-      [scheduleId, partnerId, 'pending']
+      'INSERT INTO requests (ride_id, passenger_id, status) VALUES (?, ?, ?)',
+      [ride_id, passenger_id, 'pending']
     );
-    res.status(201).json({ _id: result.lastID, scheduleId, partnerId, status: 'pending' });
+    res.status(201).json({ _id: result.lastID, ride_id, passenger_id, status: 'pending' });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -168,19 +168,19 @@ app.get('/api/requests/driver/:driverId', async (req, res) => {
 
     // Get schedules for this driver
     const requests = await db.all(`
-      SELECT requests.id as _id, requests.scheduleId, requests.partnerId, requests.status, requests.splitAmount,
-             users.name as partnerName,
+      SELECT requests.id as _id, requests.ride_id, requests.passenger_id, requests.status, requests.splitAmount,
+             users.name as passengerName,
              schedules.day, schedules.timeSlot, schedules.origin, schedules.destination, schedules.availableSeats, schedules.gasCost
       FROM requests
-      JOIN schedules ON requests.scheduleId = schedules.id
-      JOIN users ON requests.partnerId = users.id
+      JOIN schedules ON requests.ride_id = schedules.id
+      JOIN users ON requests.passenger_id = users.id
       WHERE schedules.driverId = ?
     `, [driverId]);
 
     const formattedRequests = requests.map(r => ({
       _id: r._id,
-      scheduleId: {
-        _id: r.scheduleId,
+      ride_id: {
+        _id: r.ride_id,
         day: r.day,
         timeSlot: r.timeSlot,
         origin: r.origin,
@@ -188,9 +188,9 @@ app.get('/api/requests/driver/:driverId', async (req, res) => {
         availableSeats: r.availableSeats,
         gasCost: r.gasCost
       },
-      partnerId: {
-        _id: r.partnerId,
-        name: r.partnerName
+      passenger_id: {
+        _id: r.passenger_id,
+        name: r.passengerName
       },
       status: r.status,
       splitAmount: r.splitAmount
@@ -202,8 +202,8 @@ app.get('/api/requests/driver/:driverId', async (req, res) => {
   }
 });
 
-// Driver accepts/rejects a ride request
-app.patch('/api/requests/:id', async (req, res) => {
+// Driver accepts/declines a ride request
+app.put('/api/requests/:id', async (req, res) => {
   try {
     const db = getDB();
     const { status } = req.body;
@@ -216,13 +216,13 @@ app.patch('/api/requests/:id', async (req, res) => {
     }
 
     if (status === 'accepted') {
-      const schedule = await db.get('SELECT * FROM schedules WHERE id = ?', [request.scheduleId]);
+      const schedule = await db.get('SELECT * FROM schedules WHERE id = ?', [request.ride_id]);
       
       if (schedule.availableSeats <= 0) {
         return res.status(400).json({ error: 'No available seats' });
       }
 
-      const allAcceptedReqs = await db.all('SELECT * FROM requests WHERE scheduleId = ? AND status = ?', [schedule.id, 'accepted']);
+      const allAcceptedReqs = await db.all('SELECT * FROM requests WHERE ride_id = ? AND status = ?', [schedule.id, 'accepted']);
       const allAcceptedReqsCount = allAcceptedReqs.length;
       
       const totalPeople = allAcceptedReqsCount + 1 + 1; // current accepted + driver + this new person
@@ -230,12 +230,12 @@ app.patch('/api/requests/:id', async (req, res) => {
 
       await db.run('UPDATE requests SET status = ?, splitAmount = ? WHERE id = ?', ['accepted', splitAmount, id]);
       await db.run('UPDATE schedules SET availableSeats = availableSeats - 1 WHERE id = ?', [schedule.id]);
-      await db.run('UPDATE requests SET splitAmount = ? WHERE scheduleId = ? AND status = ?', [splitAmount, schedule.id, 'accepted']);
+      await db.run('UPDATE requests SET splitAmount = ? WHERE ride_id = ? AND status = ?', [splitAmount, schedule.id, 'accepted']);
       
       res.json({ _id: id, status: 'accepted', splitAmount });
-    } else if (status === 'rejected') {
-      await db.run('UPDATE requests SET status = ? WHERE id = ?', ['rejected', id]);
-      res.json({ _id: id, status: 'rejected' });
+    } else if (status === 'declined') {
+      await db.run('UPDATE requests SET status = ? WHERE id = ?', ['declined', id]);
+      res.json({ _id: id, status: 'declined' });
     } else {
       res.status(400).json({ error: 'Invalid status' });
     }
