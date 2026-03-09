@@ -12,17 +12,26 @@ app.post('/api/register', async (req, res) => {
     const db = getDB();
     const { name, email, password, role } = req.body;
 
+    // Check email domain
+    if (!email.endsWith('@giu-uni.de')) {
+      return res.status(400).json({ error: 'Email must end in @giu-uni.de' });
+    }
+
     // Check if user already exists
     const existingUser = await db.get('SELECT * FROM users WHERE email = ?', [email]);
     if (existingUser) {
       return res.status(400).json({ error: 'User with this email already exists' });
     }
 
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    console.log(`Generated OTP for ${email}: ${otp}`);
+
     const result = await db.run(
-      'INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)',
-      [name, email, password, role]
+      'INSERT INTO users (name, email, password, role, is_verified, otp_code) VALUES (?, ?, ?, ?, ?, ?)',
+      [name, email, password, role, 0, otp]
     );
-    res.status(201).json({ _id: result.lastID, name, email, role });
+    res.status(201).json({ _id: result.lastID, name, email, role, is_verified: false, message: 'OTP sent to email. Please verify.' });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
@@ -33,13 +42,45 @@ app.post('/api/login', async (req, res) => {
     const db = getDB();
     const { email, password } = req.body;
 
-    const user = await db.get('SELECT id as _id, name, email, role FROM users WHERE email = ? AND password = ?', [email, password]);
+    const user = await db.get('SELECT id as _id, name, email, role, is_verified FROM users WHERE email = ? AND password = ?', [email, password]);
 
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    if (!user.is_verified) {
+      return res.status(403).json({ error: 'Please verify your email address before logging in.', unverifiedUser: user });
+    }
+
     res.json(user);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.post('/api/verify', async (req, res) => {
+  try {
+    const db = getDB();
+    const { email, otp_code } = req.body;
+
+    const user = await db.get('SELECT * FROM users WHERE email = ?', [email]);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (user.otp_code !== otp_code) {
+      return res.status(400).json({ error: 'Invalid OTP code' });
+    }
+
+    await db.run('UPDATE users SET is_verified = 1, otp_code = NULL WHERE email = ?', [email]);
+
+    res.json({
+      _id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      is_verified: true
+    });
   } catch (err) {
     res.status(400).json({ error: err.message });
   }

@@ -32,6 +32,20 @@ export const register = async (userData) => {
   return data;
 };
 
+export const verifyOTP = async (email, otp_code) => {
+  const res = await fetch(`${API_URL}/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, otp_code }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || 'Verification failed');
+  }
+  return data;
+};
+
 export const getUsers = async () => {
   const res = await fetch(`${API_URL}/users`);
   return res.json();

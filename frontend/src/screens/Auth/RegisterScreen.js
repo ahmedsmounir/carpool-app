@@ -1,24 +1,92 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, TouchableOpacity, SafeAreaView, KeyboardAvoidingView, Platform } from 'react-native';
+import { verifyOTP } from '../../api';
 
 export default function RegisterScreen({ navigation, route }) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('partner'); // Default role
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
   // Similarly passing app-level function via navigation params
-  const { onRegister } = route.params || {};
+  const { onRegister, onVerify } = route.params || {};
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
+    setErrorMessage('');
+    if (!email.endsWith('@giu-uni.de')) {
+      setErrorMessage('Email must end in @giu-uni.de');
+      return;
+    }
     if (onRegister) {
-      onRegister({ name, email, password, role });
+      try {
+        const result = await onRegister({ name, email, password, role });
+        if (result && !result.is_verified) {
+          setIsVerifying(true);
+        }
+      } catch (e) {
+        setErrorMessage(e.message || 'Registration failed');
+      }
+    }
+  };
+
+  const handleVerify = async () => {
+    setErrorMessage('');
+    try {
+      const user = await verifyOTP(email, otpCode);
+      if (onVerify) {
+        onVerify(user);
+      }
+    } catch (e) {
+      setErrorMessage(e.message || 'Verification failed');
     }
   };
 
   const handleLoginNavigation = () => {
     navigation.goBack();
   };
+
+  if (isVerifying) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardView}
+        >
+          <View style={styles.content}>
+            <Text style={styles.title}>Verify Email</Text>
+            <Text style={styles.subtitle}>Enter the 6-digit code sent to {email}</Text>
+
+            {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+
+            <View style={styles.inputContainer}>
+              <TextInput
+                style={styles.input}
+                placeholder="000000"
+                placeholderTextColor="#888"
+                value={otpCode}
+                onChangeText={setOtpCode}
+                keyboardType="number-pad"
+                maxLength={6}
+              />
+            </View>
+
+            <TouchableOpacity style={styles.registerButton} onPress={handleVerify}>
+              <Text style={styles.registerButtonText}>Verify</Text>
+            </TouchableOpacity>
+
+            <View style={styles.loginContainer}>
+              <TouchableOpacity onPress={() => setIsVerifying(false)}>
+                <Text style={styles.loginLink}>Back to Register</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -29,6 +97,8 @@ export default function RegisterScreen({ navigation, route }) {
         <View style={styles.content}>
           <Text style={styles.title}>Create Account</Text>
           <Text style={styles.subtitle}>Sign up to get started</Text>
+
+          {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
 
           <View style={styles.inputContainer}>
             <TextInput
@@ -120,7 +190,14 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 16,
     color: '#666666',
-    marginBottom: 40,
+    marginBottom: 20,
+  },
+  errorText: {
+    color: '#ff3333',
+    fontSize: 14,
+    marginBottom: 20,
+    textAlign: 'center',
+    fontWeight: '500',
   },
   inputContainer: {
     marginBottom: 20,
