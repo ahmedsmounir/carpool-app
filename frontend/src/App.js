@@ -33,27 +33,24 @@ function AppNavigation() {
   const handleRegister = async (userData) => {
     setLoading(true);
     try {
-      const user = await register(userData);
-      setCurrentUser(user);
+      const res = await register(userData);
+      return res;
     } catch (e) {
       console.error(e);
       alert("Error: " + e.message);
+      throw e;
     } finally {
       setLoading(false);
     }
   };
 
+  const handleVerify = (user) => {
+    setCurrentUser(user);
+  };
+
   const handleLogout = () => {
     setCurrentUser(null);
   };
-
-  if (loading) {
-    return (
-      <SafeAreaView style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-      </SafeAreaView>
-    );
-  }
 
   const headerRightComponent = () => (
     <View style={styles.headerRightContainer}>
@@ -92,7 +89,7 @@ function AppNavigation() {
               name="Register"
               options={{ headerShown: false }}
             >
-              {props => <RegisterScreen {...props} route={{ params: { onRegister: handleRegister } }} />}
+              {props => <RegisterScreen {...props} route={{ params: { onRegister: handleRegister, onVerify: handleVerify } }} />}
             </Stack.Screen>
           </>
         ) : (

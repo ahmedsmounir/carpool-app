@@ -16,7 +16,9 @@ const connectDB = async () => {
       name TEXT NOT NULL,
       email TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
-      role TEXT NOT NULL CHECK(role IN ('driver', 'partner'))
+      role TEXT NOT NULL CHECK(role IN ('driver', 'partner')),
+      is_verified BOOLEAN DEFAULT 0,
+      otp_code TEXT
     );
 
     CREATE TABLE IF NOT EXISTS schedules (
