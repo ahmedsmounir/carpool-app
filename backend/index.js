@@ -286,6 +286,99 @@ app.put('/api/requests/:id', async (req, res) => {
 });
 
 
+// Wallet
+app.get('/api/wallet/:userId', async (req, res) => {
+  try {
+    const db = getDB();
+    const { userId } = req.params;
+
+    const user = await db.get('SELECT wallet_balance FROM users WHERE id = ?', [userId]);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const transactions = await db.all(`
+      SELECT t.id, t.sender_id, t.receiver_id, t.amount, t.ride_id, t.timestamp,
+             s.name as sender_name, r.name as receiver_name
+      FROM transactions t
+      JOIN users s ON t.sender_id = s.id
+      JOIN users r ON t.receiver_id = r.id
+      WHERE t.sender_id = ? OR t.receiver_id = ?
+      ORDER BY t.timestamp DESC
+    `, [userId, userId]);
+
+    res.json({
+      balance: user.wallet_balance,
+      transactions: transactions
+    });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.post('/api/wallet/transfer', async (req, res) => {
+  try {
+    const db = getDB();
+    const { sender_id, receiver_id, amount, ride_id, request_id } = req.body;
+
+    if (amount <= 0) {
+      return res.status(400).json({ error: 'Amount must be greater than zero' });
+    }
+
+    // Begin a transaction
+    await db.run('BEGIN TRANSACTION');
+
+    if (request_id) {
+      const request = await db.get('SELECT status FROM requests WHERE id = ?', [request_id]);
+      if (request && request.status === 'completed') {
+        await db.run('ROLLBACK');
+        return res.status(400).json({ error: 'Ride already completed' });
+      }
+    }
+
+    const sender = await db.get('SELECT wallet_balance FROM users WHERE id = ?', [sender_id]);
+    const receiver = await db.get('SELECT wallet_balance FROM users WHERE id = ?', [receiver_id]);
+
+    if (!sender || !receiver) {
+      await db.run('ROLLBACK');
+      return res.status(404).json({ error: 'Sender or receiver not found' });
+    }
+
+    if (sender.wallet_balance < amount) {
+      await db.run('ROLLBACK');
+      return res.status(400).json({ error: 'Insufficient funds' });
+    }
+
+    await db.run('UPDATE users SET wallet_balance = wallet_balance - ? WHERE id = ?', [amount, sender_id]);
+    await db.run('UPDATE users SET wallet_balance = wallet_balance + ? WHERE id = ?', [amount, receiver_id]);
+
+    const result = await db.run(
+      'INSERT INTO transactions (sender_id, receiver_id, amount, ride_id) VALUES (?, ?, ?, ?)',
+      [sender_id, receiver_id, amount, ride_id]
+    );
+
+    if (request_id) {
+      // Mark the request as completed so it can't be completed again
+      await db.run('UPDATE requests SET status = ? WHERE id = ?', ['completed', request_id]);
+    }
+
+    await db.run('COMMIT');
+
+    res.status(201).json({
+      id: result.lastID,
+      sender_id,
+      receiver_id,
+      amount,
+      ride_id,
+      message: 'Transfer successful'
+    });
+  } catch (err) {
+    const db = getDB();
+    await db.run('ROLLBACK');
+    res.status(400).json({ error: err.message });
+  }
+});
+
 // Start server
 if (require.main === module) {
   connectDB().then(() => {
