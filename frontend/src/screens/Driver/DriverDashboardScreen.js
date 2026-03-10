@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { StyleSheet, Text, View, TextInput, Alert, ScrollView, TouchableOpacity, Modal } from 'react-native';
-import { createSchedule, getRequestsForDriver, updateRequest, getSchedulesForDriver } from '../../api';
+import { createSchedule, getRequestsForDriver, updateRequest, getSchedulesForDriver, transferFunds } from '../../api';
 import { useTheme } from '../../ThemeContext';
 
 const DAYS = ['Saturday', 'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday'];
@@ -50,6 +50,26 @@ export default function DriverDashboardScreen({ currentUser, navigation }) {
       fetchData(); // Refresh list to get updated splitAmount and status
     } catch (e) {
       Alert.alert("Error", e.message);
+    }
+  };
+
+  const handleCompleteRide = async (item) => {
+    try {
+      const transferData = {
+        sender_id: item.passenger_id._id,
+        receiver_id: currentUser._id,
+        amount: item.splitAmount,
+        ride_id: item.ride_id._id,
+        request_id: item._id
+      };
+
+      const res = await transferFunds(transferData);
+      if (res.error) throw new Error(res.error);
+
+      Alert.alert("Ride Completed", `Successfully transferred $${item.splitAmount.toFixed(2)} to your wallet.`);
+      fetchData(); // Refresh to update status to completed
+    } catch (e) {
+      Alert.alert("Transfer Error", e.message);
     }
   };
 
@@ -209,6 +229,14 @@ export default function DriverDashboardScreen({ currentUser, navigation }) {
               </TouchableOpacity>
             </View>
           )}
+
+          {item.status === 'accepted' && (
+            <View style={styles.btnRow}>
+              <TouchableOpacity style={[styles.actionButton, styles.completeButton]} onPress={() => handleCompleteRide(item)}>
+                <Text style={styles.actionButtonText}>Complete Ride</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       ))}
 
@@ -340,7 +368,7 @@ const styles = StyleSheet.create({
   },
   statusText: (status) => ({
     fontWeight: '700',
-    color: status === 'accepted' ? '#28a745' : status === 'declined' ? '#dc3545' : '#f0ad4e',
+    color: status === 'completed' ? '#007bff' : status === 'accepted' ? '#28a745' : status === 'declined' ? '#dc3545' : '#f0ad4e',
   }),
   btnRow: {
     flexDirection: 'row',
@@ -359,6 +387,9 @@ const styles = StyleSheet.create({
   },
   rejectButton: {
     backgroundColor: '#dc3545',
+  },
+  completeButton: {
+    backgroundColor: '#007bff',
   },
   actionButtonText: {
     color: '#FFF',

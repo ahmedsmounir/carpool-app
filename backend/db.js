@@ -18,7 +18,8 @@ const connectDB = async () => {
       password TEXT NOT NULL,
       role TEXT NOT NULL CHECK(role IN ('driver', 'partner')),
       is_verified BOOLEAN DEFAULT 0,
-      otp_code TEXT
+      otp_code TEXT,
+      wallet_balance REAL DEFAULT 100.0
     );
 
     CREATE TABLE IF NOT EXISTS schedules (
@@ -41,6 +42,18 @@ const connectDB = async () => {
       splitAmount REAL,
       FOREIGN KEY(ride_id) REFERENCES schedules(id),
       FOREIGN KEY(passenger_id) REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS transactions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sender_id INTEGER NOT NULL,
+      receiver_id INTEGER NOT NULL,
+      amount REAL NOT NULL,
+      ride_id INTEGER NOT NULL,
+      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(sender_id) REFERENCES users(id),
+      FOREIGN KEY(receiver_id) REFERENCES users(id),
+      FOREIGN KEY(ride_id) REFERENCES schedules(id)
     );
   `);
 

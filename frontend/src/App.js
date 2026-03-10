@@ -7,6 +7,7 @@ import LoginScreen from './screens/Auth/LoginScreen';
 import RegisterScreen from './screens/Auth/RegisterScreen';
 import DriverScreen from './screens/Driver/DriverDashboardScreen';
 import PartnerScreen from './screens/Partner/PartnerSearchScreen';
+import WalletScreen from './screens/WalletScreen';
 import { login, register } from './api';
 import { ThemeProvider, useTheme } from './ThemeContext';
 
@@ -52,8 +53,11 @@ function AppNavigation() {
     setCurrentUser(null);
   };
 
-  const headerRightComponent = () => (
+  const headerRightComponent = (navigation) => (
     <View style={styles.headerRightContainer}>
+      <TouchableOpacity onPress={() => navigation.navigate('Wallet')} style={styles.walletButton}>
+        <Text style={[styles.walletText, { color: colors.text }]}>Wallet</Text>
+      </TouchableOpacity>
       <TouchableOpacity onPress={toggleTheme} style={styles.themeButton}>
         <Text style={[styles.themeText, { color: colors.text }]}>{isDarkMode ? '☀️' : '🌙'}</Text>
       </TouchableOpacity>
@@ -98,24 +102,33 @@ function AppNavigation() {
             {currentUser.role === 'driver' ? (
               <Stack.Screen
                 name="DriverDashboard"
-                options={{
+                options={({ navigation }) => ({
                   title: 'Driver Dashboard',
-                  headerRight: headerRightComponent
-                }}
+                  headerRight: () => headerRightComponent(navigation)
+                })}
               >
                 {props => <DriverScreen {...props} currentUser={currentUser} />}
               </Stack.Screen>
             ) : (
               <Stack.Screen
                 name="PartnerSearch"
-                options={{
+                options={({ navigation }) => ({
                   title: 'Partner Search',
-                  headerRight: headerRightComponent
-                }}
+                  headerRight: () => headerRightComponent(navigation)
+                })}
               >
                 {props => <PartnerScreen {...props} currentUser={currentUser} />}
               </Stack.Screen>
             )}
+
+            <Stack.Screen
+              name="Wallet"
+              options={{
+                title: 'My Wallet'
+              }}
+            >
+              {props => <WalletScreen {...props} currentUser={currentUser} />}
+            </Stack.Screen>
           </>
         )}
       </Stack.Navigator>
@@ -147,6 +160,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#ffffff',
+  },
+  walletButton: {
+    marginRight: 15,
+  },
+  walletText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
   logoutButton: {
     marginRight: 15,

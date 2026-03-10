@@ -60,6 +60,20 @@ export const createUser = async (userData) => {
   return res.json();
 };
 
+export const getWallet = async (userId) => {
+  const res = await fetch(`${API_URL}/wallet/${userId}`);
+  return res.json();
+};
+
+export const transferFunds = async (transferData) => {
+  const res = await fetch(`${API_URL}/wallet/transfer`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(transferData),
+  });
+  return res.json();
+};
+
 export const getRequestsForDriver = async (driverId) => {
   const res = await fetch(`${API_URL}/requests/driver/${driverId}`);
   return res.json();
