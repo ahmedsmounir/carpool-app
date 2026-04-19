@@ -380,10 +380,12 @@ app.post('/api/wallet/transfer', async (req, res) => {
 });
 
 // Start server
+const PORT = process.env.PORT || 3000;
+
 if (require.main === module) {
   connectDB().then(() => {
-    app.listen(3000, () => {
-      console.log('Server is running on port 3000');
+    app.listen(PORT, () => {
+      console.log(`Carpool API is running on port ${PORT}`);
     });
   });
 }
