@@ -1,8 +1,7 @@
 import { Platform } from 'react-native';
 
-// Use your local network IP if testing on physical device, or localhost for simulator
-// In Android emulator, localhost is 10.0.2.2.
-const API_URL = Platform.OS === 'android' ? 'http://10.0.2.2:3000/api' : 'http://localhost:3000/api';
+// Your live Railway backend URL! 
+const API_URL = 'https://carpool-app-production-1462.up.railway.app/api';
 
 export const login = async (credentials) => {
   const res = await fetch(`${API_URL}/login`, {
