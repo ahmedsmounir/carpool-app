@@ -24,8 +24,8 @@ function AppNavigation() {
       const user = await login(credentials);
       setCurrentUser(user);
     } catch (e) {
-      console.error(e);
-      alert("Error: " + e.message);
+      setLoading(false);
+      throw e; // We MUST throw this so LoginScreen can catch it and show the OTP input!
     } finally {
       setLoading(false);
     }
