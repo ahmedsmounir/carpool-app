@@ -1,15 +1,6 @@
 require('dotenv').config();
 const { Pool } = require('pg');
 
-// DEBUGGING: This will tell us if the variable is actually loading
-console.log('🔍 Checking Environment Variables...');
-if (!process.env.DATABASE_URL) {
-  console.error('❌ ERROR: DATABASE_URL is missing from your .env file!');
-  console.log('Current directory:', __dirname);
-} else {
-  console.log('✅ DATABASE_URL detected.');
-}
-
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: {
@@ -23,14 +14,14 @@ const connectDB = async () => {
     console.log('✅ Successfully connected to Supabase PostgreSQL!');
     client.release();
   } catch (err) {
-    console.error('❌ Database connection error details:');
-    console.error('- Code:', err.code);
-    console.error('- Message:', err.message);
+    console.error('❌ Database connection error:', err.stack);
     throw err;
   }
 };
 
+// This exports the functions index.js is looking for
 module.exports = {
   query: (text, params) => pool.query(text, params),
-  connectDB
+  connectDB,
+  getDB: () => pool // This is the "missing link" causing your error!
 };
