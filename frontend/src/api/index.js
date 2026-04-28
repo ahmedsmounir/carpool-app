@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 
 // Your live Railway backend URL! 
-const API_URL = 'https://carpool-app-production-03b4.up.railway.app/';
+const API_URL = 'https://carpool-app-production-03b4.up.railway.app/api';
 
 export const login = async (credentials) => {
   const res = await fetch(`${API_URL}/login`, {
